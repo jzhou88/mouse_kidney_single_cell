@@ -1706,6 +1706,201 @@ SortClusters <- function(seurat.obj, var.as.cluster = NULL) {
   base::return(clusters)
 }
 
+StandardDoubletFinder <- function(seurat.obj, doublet.rate, ndims = 10, save.fig.dir = qc.dir, 
+                                  fn.suf = "", save.rst.dir = rst.dir) {
+  ### Remove doublets
+  ## pK Identification (no ground-truth)
+  sweep.res.list <- DoubletFinder::paramSweep_v3(seu = seurat.obj, PCs = 1:ndims, sct = F)
+  sweep.stats <- DoubletFinder::summarizeSweep(sweep.list = sweep.res.list, GT = F)
+  # grDevices::pdf(file = base::file.path(save.fig.dir, base::sprintf("BCmetric_pK%s.pdf", fn.suf)), 
+  #                width = 7, height = 4, onefile = T, paper = "special")
+  grDevices::jpeg(file = base::file.path(save.fig.dir, base::sprintf("BCmetric_pK%s.jpg", fn.suf)), 
+                  width = 7, height = 4, units = "in", pointsize = 12, quality = 100, res = 300)
+  bcmvn <- DoubletFinder::find.pK(sweep.stats = sweep.stats)
+  grDevices::dev.off()
+  base::sink(file = base::file.path(save.rst.dir, base::sprintf(fmt = "BCmvn%s.txt", fn.suf)), append = F, split = F)
+  base::print(x = bcmvn)
+  base::sink()
+  ## Homotypic Doublet Proportion Estimate
+  homotypic.prop <- DoubletFinder::modelHomotypic(annotations = seurat.obj$seurat_clusters)
+  nExp_poi <- base::round(doublet.rate * base::ncol(x = seurat.obj))
+  nExp_poi.adj <- base::round(nExp_poi * (1 - homotypic.prop))
+  ## Run DoubletFinder with varying classification stringencies
+  select.pK <- base::as.numeric(x = base::as.character(x = bcmvn$pK[base::which.max(x = bcmvn$BCmetric)]))
+  base::cat(base::sprintf(fmt = "\npK=%s\n", select.pK))
+  seurat.obj <- DoubletFinder::doubletFinder_v3(seu = seurat.obj, PCs = 1:ndims, pN = 0.25, pK = select.pK, 
+                                                nExp = nExp_poi, reuse.pANN = F, sct = F)
+  pANN.to.reuse <- base::grep(pattern = "^pANN", x = base::colnames(x = seurat.obj@meta.data), value = T)
+  init.class <- base::grep(pattern = "^DF.class", x = base::colnames(x = seurat.obj@meta.data), value = T)
+  base::cat("\n")
+  base::print(x = base::colnames(x = seurat.obj@meta.data))
+  base::cat(base::sprintf(fmt = "\npANN.to.reuse=%s\n", pANN.to.reuse))
+  base::cat(base::sprintf(fmt = "init.class=%s\n", init.class))
+  seurat.obj <- DoubletFinder::doubletFinder_v3(seu = seurat.obj, PCs = 1:ndims, pN = 0.25, pK = select.pK, 
+                                                nExp = nExp_poi.adj, reuse.pANN = pANN.to.reuse, sct = F)
+  ## Isolate singlets
+  final.class <- base::grep(pattern = "^DF.class", x = base::colnames(x = seurat.obj@meta.data), value = T)
+  final.class <- final.class[final.class != init.class]
+  base::cat("\n")
+  base::print(x = base::colnames(x = seurat.obj@meta.data))
+  base::cat(base::sprintf(fmt = "\nfinal.class=%s\n", final.class))
+  Seurat::Idents(object = seurat.obj) <- final.class
+  base::cat("\n")
+  base::print(x = base::table(Seurat::Idents(object = seurat.obj)))
+  seurat.obj$doublet.or.not <- base::as.character(x = Seurat::Idents(object = seurat.obj))
+  seurat.obj <- subset(x = seurat.obj, subset = (doublet.or.not == "Singlet"))
+  base::cat("\n")
+  base::print(x = base::table(Seurat::Idents(object = seurat.obj)))
+  singlet.cell.ids <- base::as.character(x = seurat.obj$cellID)
+  base::cat("\n")
+  base::print(x = utils::head(x = seurat.obj[[]]))
+  base::cat("\n")
+  base::print(x = utils::head(x = singlet.cell.ids))
+  base::cat("\n")
+  base::print(x = utils::tail(x = seurat.obj[[]]))
+  base::cat("\n")
+  base::print(x = utils::tail(x = singlet.cell.ids))
+  base::return(singlet.cell.ids)
+}
+
+StandardSeurat <- function(counts, project = "SeuratProject", assay = "RNA", names.field = 1, names.delim = "_", 
+                           meta.data = NULL, min.cells = 0, min.features = 0, mt.pattern = "^mt-", cell.id.type = 1, 
+                           do.qc = F, min.umi = 500, min.gene = 250, max.gene = 2500, max.mito = 0.5, 
+                           min.complex = 0.25, rds.before.qc = F, save.rds.dir = rds.dir, fig.before.qc = F, 
+                           fig.after.qc = F, save.fig.dir = fig.dir, fn.suf = "", do.clustering = T, 
+                           npcs = 50, ndims = 10, resolution = 0.8) {
+  rvals <- base::list()
+  
+  ### Standard Seurat workflow
+  ## Initialize the Seurat object with the raw (non-normalized data).
+  sobj <- Seurat::CreateSeuratObject(counts = counts, project = project, assay = assay, names.field = names.field, 
+                                     names.delim = names.delim, meta.data = meta.data, min.cells = min.cells, 
+                                     min.features = min.features)
+  
+  ## Estimate doublet rates
+  ## by fitting the total number of cells to a linear regression of the expected doublet rates
+  ## published in the 10x Chromium handbook
+  nCell <- base::ncol(x = sobj)
+  base::cat(base::sprintf(fmt = "\nNumber of Cells=%s\n", nCell))
+  doublet.rate <- 0.004 * (nCell / 500)
+  base::cat(base::sprintf(fmt = "Doublet Rate=%s\n", doublet.rate))
+  rvals$doublet.rate <- doublet.rate
+  
+  ## Calculate proportion of transcripts mapping to mitochondrial genes
+  sobj$mitoRatio <- Seurat::PercentageFeatureSet(object = sobj, pattern = mt.pattern)
+  sobj$mitoRatio <- sobj$mitoRatio / 100
+  ## Update metadata
+  metadata <- sobj@meta.data
+  ## Rename columns
+  metadata <- dplyr::rename(metadata, sample = orig.ident, nUMI = nCount_RNA, nGene = nFeature_RNA)
+  ## Add number of genes per UMI for each cell to metadata
+  ## log10 transform the result for better comparison between samples
+  ## I am not sure if this is correct or not, but it works quite well
+  metadata$nGenePerUMI <- metadata$nGene / metadata$nUMI
+  ## Add cell IDs to metadata
+  if (0 == cell.id.type) {
+    ## The cell IDs will name clusters used by SoupX.
+    ## So, the cell IDs here must be exactly what they are in the original filtered counts.
+    metadata$cellID <- base::rownames(x = metadata)
+  } else if (1 == cell.id.type) {
+    ## Each cell gets a new unique cell ID.
+    metadata$cellID <- base::paste(metadata$sample, base::rownames(x = metadata), sep = "_")
+  } else if (2 == cell.id.type) {
+    ## Be used in the case of processed GSE139107 data matrices.
+    split.cell.ids <- base::matrix(data = base::unlist(x = base::strsplit(x = base::rownames(x = metadata), 
+                                                                          split = "_", fixed = T)), ncol = 2, byrow = T)
+    metadata$cellID <- base::paste(metadata$sample, split.cell.ids[,2], sep = "_")
+  } else {
+    base::stop(base::sprintf("could not identify the cell ID type \"%s\".", cell.id.type))
+  }
+  ## Add metadata back to Seurat object
+  sobj@meta.data <- metadata
+  base::cat("\n")
+  base::print(x = utils::head(x = sobj@meta.data, n = 3L))
+  base::print(x = utils::tail(x = sobj@meta.data, n = 3L))
+  
+  total.umi <- base::sum(sobj$nUMI)
+  base::cat(base::sprintf(fmt = "\nTotal Number of UMIs=%s\n", total.umi))
+  rvals$total.umi <- total.umi
+  
+  if (rds.before.qc) {
+    base::saveRDS(object = sobj, file = base::file.path(save.rds.dir, 
+                                                        base::sprintf(fmt = "cells_to_filter%s.RDS", fn.suf)))
+  }
+  
+  if (fig.before.qc) {
+    PlotQualityMetrics(seurat.obj = sobj, save.fig.dir = save.fig.dir, do.correlation = T, do.density = T, 
+                       do.box.t = F, do.quartile = F, fn.suf = base::sprintf(fmt = "_before%s", fn.suf), 
+                       low.umi = min.umi, low.gene = min.gene, high.gene = max.gene, low.mito = base::min(0.2, max.mito), 
+                       high.mito = base::max(0.5, max.mito), low.complex = min.complex)
+  }
+  
+  if (do.qc) {
+    sobj <- subset(x = sobj, subset = (nUMI > min.umi) & (nGene > min.gene) & (nGene < max.gene) & 
+                     (mitoRatio < max.mito) & (nGenePerUMI > min.complex))
+  }
+  
+  if (fig.after.qc) {
+    PlotQualityMetrics(seurat.obj = sobj, save.fig.dir = save.fig.dir, do.correlation = T, do.density = T, 
+                       do.box.t = F, do.quartile = F, fn.suf = base::sprintf(fmt = "_after%s", fn.suf), 
+                       low.umi = min.umi, low.gene = min.gene, high.gene = max.gene, low.mito = base::min(0.2, max.mito), 
+                       high.mito = base::max(0.5, max.mito), low.complex = min.complex)
+  }
+  
+  if (do.clustering) {
+    ## Normalize the data
+    sobj <- Seurat::NormalizeData(object = sobj, assay = assay, normalization.method = "LogNormalize", 
+                                  scale.factor = 10000, verbose = F)
+    ## Identify highly variable genes (feature selection)
+    sobj <- Seurat::FindVariableFeatures(object = sobj, assay = assay, selection.method = "vst", nfeatures = 2000, 
+                                         verbose = F)
+    ## Scale the data
+    sobj <- Seurat::ScaleData(object = sobj, features = Seurat::VariableFeatures(object = sobj), assay = assay, 
+                              verbose = F)
+    ## Perform linear dimensional reduction
+    sobj <- Seurat::RunPCA(object = sobj, assay = assay, features = Seurat::VariableFeatures(object = sobj), npcs = npcs,
+                           verbose = F)
+    ## Cluster the cells
+    sobj <- Seurat::FindNeighbors(object = sobj, reduction = "pca", dims = 1:ndims, verbose = F)
+    sobj <- Seurat::FindClusters(object = sobj, resolution = resolution, verbose = F)
+    ## Run non-linear dimensional reduction
+    sobj <- Seurat::RunUMAP(object = sobj, dims = 1:ndims, reduction = "pca", umap.method = "uwot", metric = "cosine", 
+                            verbose = F)
+    ## Save clustering information
+    cluster.labels <- base::as.character(x = sobj$seurat_clusters)
+    base::names(x = cluster.labels) <- base::as.character(x = sobj$cellID)
+    base::cat("\n")
+    base::print(x = utils::head(x = sobj[[]], n = 3L))
+    base::cat("\n")
+    base::print(x = utils::head(x = cluster.labels, n = 3L))
+    base::cat("\n")
+    base::print(x = utils::tail(x = sobj[[]], n = 3L))
+    base::cat("\n")
+    base::print(x = utils::tail(x = cluster.labels, n = 3L))
+    rvals$cluster.label <- cluster.labels
+  }
+  rvals$seurat.obj <- sobj
+  
+  base::return(rvals)
+}
+
+StandardSoupX <- function(raw.droplets.dir, filtered.counts.dir, cluster.labels, save.fig.dir, fn.suf = "", 
+                          forceAccept = T, roundToInt = T) {
+  ### Remove ambient RNA
+  table_of_droplets <- Seurat::Read10X(data.dir = raw.droplets.dir)
+  table_of_counts <- Seurat::Read10X(data.dir = filtered.counts.dir)
+  sc <- SoupX::SoupChannel(tod = table_of_droplets, toc = table_of_counts)
+  sc <- SoupX::setClusters(sc = sc, clusters = cluster.labels)
+  # grDevices::pdf(file = base::file.path(save.fig.dir, base::sprintf("EstimatesDensity%s.pdf", fn.suf)), 
+  #                width = 7, height = 7, onefile = T, paper = "special")
+  grDevices::jpeg(file = base::file.path(save.fig.dir, base::sprintf("EstimatesDensity%s.jpg", fn.suf)), 
+                  width = 7, height = 7, units = "in", pointsize = 12, quality = 100, res = 300)
+  sc <- SoupX::autoEstCont(sc = sc, doPlot = T, forceAccept = forceAccept, verbose = F)
+  grDevices::dev.off()
+  adjusted.counts <- SoupX::adjustCounts(sc = sc, roundToInt = roundToInt, verbose = 0)
+  base::return(adjusted.counts)
+}
+
 TestPredictionScore <- function(seurat.obj, var.predicted, scores.to.test, red.to.plot, save.fig.dir, fn.suf) {
   var.as.score <- base::sprintf(fmt = "%s.score", var.predicted)
   base::cat("\n")
