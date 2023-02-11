@@ -284,4 +284,4 @@ base::dir.create(path = fig.mo2.dir, showWarnings = T, recursive = F, mode = "07
 base::dir.create(path = fig.scv.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.pat.dir, showWarnings = T, recursive = F, mode = "0755")
 
-base::source(file = base::file.path(src.dir, "auxFunc.R"))
+base::source(file = base::file.path(src.dir, "auxiliary_functions.R"))
