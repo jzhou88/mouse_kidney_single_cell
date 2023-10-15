@@ -4,73 +4,63 @@ base::cat("\nRunning \"common.R\" ...\n")
 ### Global settings ------
 base::options(max.print = 99999, warn = 1)
 base::suppressPackageStartupMessages({
+  base::library(package = "plot1cell")
   base::library(package = "AnnotationHub")
   base::library(package = "Biobase")
   base::library(package = "BiocGenerics")
   base::library(package = "biomaRt")
   base::library(package = "CellChat")
-  base::library(package = "clusterExperiment")
+  base::library(package = "circlize")
   base::library(package = "ComplexHeatmap")
   base::library(package = "ComplexUpset")
-  base::library(package = "conflicted")
   base::library(package = "COSG")
-  base::library(package = "corrplot")
-  base::library(package = "cowplot")
   base::library(package = "data.table")
   base::library(package = "decoupleR")
-  base::library(package = "DescTools")
   base::library(package = "DESeq2")
   base::library(package = "destiny")
   base::library(package = "devtools")
-  base::library(package = "DoubletFinder")
   base::library(package = "dplyr")
+  base::library(package = "DoubletFinder")
   base::library(package = "EnsDb.Mmusculus.v79")
   base::library(package = "ensembldb")
   base::library(package = "factoextra")
   base::library(package = "future")
-  base::library(package = "gam")
   base::library(package = "GenomeInfoDb")
   base::library(package = "GenomicRanges")
   base::library(package = "GGally")
-  base::library(package = "ggbeeswarm")
   base::library(package = "ggplot2")
   base::library(package = "ggpubr")
-  base::library(package = "ggrepel")
-  base::library(package = "ggthemes")
   base::library(package = "ggvenn")
   base::library(package = "ggVennDiagram")
   base::library(package = "GOSemSim")
   base::library(package = "grDevices")
   base::library(package = "grid")
-  base::library(package = "harmony")
   base::library(package = "hdWGCNA")
   base::library(package = "igraph")
   base::library(package = "IRanges")
-  base::library(package = "knitr")
-  base::library(package = "loomR")
   base::library(package = "Matrix")
+  base::library(package = "MetaNeighbor")
   base::library(package = "methods")
   base::library(package = "monocle")
   base::library(package = "nichenetr")
-  base::library(package = "openxlsx")
+  base::library(package = "org.Hs.eg.db")
   base::library(package = "org.Mm.eg.db")
   base::library(package = "patchwork")
   base::library(package = "pheatmap")
-  base::library(package = "RColorBrewer")
   base::library(package = "reshape2")
   base::library(package = "reticulate")
   base::library(package = "rGREAT")
+  base::library(package = "rjson")
   base::library(package = "rrvgo")
   base::library(package = "S4Vectors")
   base::library(package = "scales")
-  base::library(package = "scater")
+  base::library(package = "sceasy")
   base::library(package = "scITD")
   base::library(package = "scmap")
   base::library(package = "Seurat")
   base::library(package = "SeuratDisk")
   base::library(package = "SeuratWrappers")
   base::library(package = "Signac")
-  base::library(package = "SingleCellExperiment")
   base::library(package = "SoupX")
   base::library(package = "stats")
   base::library(package = "stringr")
@@ -78,6 +68,7 @@ base::suppressPackageStartupMessages({
   base::library(package = "tidyr")
   base::library(package = "tidyverse")
   base::library(package = "utils")
+  base::library(package = "uuid")
   base::library(package = "velocyto.R")
   base::library(package = "VGAM")
   base::library(package = "viridis")
@@ -89,81 +80,72 @@ ensdb.mm.v79.ucsc.rds <- base::file.path(datasets.dir, "EnsDb.Mmusculus.v79.UCSC
 macs2.to.use <- "/home/jzhou88/installed/miniconda3/envs/r4/bin/macs2"
 
 ### Datasets ------
-## 12 datasets
-susztak.lab.atac <- base::c("FA-Mm", "UUO-Mm", "Cis-Mm", "Ctrl-Mm", 
-                            "IRI4-2", "IRI8-3", 
-                            "mouse1d1", "mouse1d2", "mouse3w", "mouse8w", 
-                            "control8w1", "control8w2")
-## 38 datasets
-susztak.lab.rna <- base::c("FA1", "FA2", "Notch3", "Notch4", "PGC1a-1", "PGC1a-2", "UUO1", "UUO2", # 1~8
-                           "longIRI1d1", "longIRI1d2", "longIRI3d1", "longIRI3d2", "longIRI14d1", "longIRI14d2", # 9~14
-                           "shortIRI1d1", "shortIRI1d2", "shortIRI3d1", "shortIRI3d2", "shortIRI14d1", "shortIRI14d2", # 15~20
-                           "IRI5-4", "IRI5-5", "IRI8-3", # 21~23
-                           "ESRRA", "G2CA-E", "G2CA-C", "MEK", "MCK", "Ksp", "Scl", # 24~30
-                           "norm1", "norm2", "norm3", "norm4", "norm5", "Pod", "MMctrl7", "MMctrl8") # 31~38
-## 7 datasets
-susztak.lab.human.snRNA <- base::c("HK2596", "HK2739", "HK2844", "HK2862", "HK2886", "HK2898", "HK2899")
-## 24 datasets
-gse139107 <- base::c("GSE139107-IRIsham1-1", "GSE139107-IRIsham1-2", "GSE139107-IRIsham2", "GSE139107-IRIsham3", 
-                     "GSE139107-IRI4h1", "GSE139107-IRI4h2", "GSE139107-IRI4h3", 
-                     "GSE139107-IRI12h1-1", "GSE139107-IRI12h1-2", "GSE139107-IRI12h2", "GSE139107-IRI12h3", 
-                     "GSE139107-IRI2d1-1", "GSE139107-IRI2d1-2", "GSE139107-IRI2d2-1", "GSE139107-IRI2d2-2", "GSE139107-IRI2d3", 
-                     "GSE139107-IRI14d1-1", "GSE139107-IRI14d1-2", "GSE139107-IRI14d2", "GSE139107-IRI14d3", 
-                     "GSE139107-IRI6w1-1", "GSE139107-IRI6w1-2", "GSE139107-IRI6w2", "GSE139107-IRI6w3")
-## 4 datasets
-gse140023 <- base::c("GSE140023-sham", "GSE140023-uuo2", "GSE140023-uuo7", "GSE140023-ruuo")
+## 29 datasets
+susztak.lab.rna <- base::c("FA1", "FA2", "UUO1", "UUO2",
+                           "longIRI1d1", "longIRI1d2", "longIRI3d1", "longIRI3d2", "longIRI14d1", "longIRI14d2",
+                           "shortIRI1d1", "shortIRI1d2", "shortIRI3d1", "shortIRI3d2", "shortIRI14d1", "shortIRI14d2",
+                           "ESRRA",
+                           "norm1", "norm2", "norm3", "norm4", "norm5", "MMctrl7",
+                           "Notch3", "PGC1a-1", "PGC1a-2",
+                           "G2CA-E", "G2CA-C",
+                           "MMctrl8")
+## 6 datasets
+susztak.lab.human.dkd.snRNA <- base::c("HK2596", "HK2844", "HK2862", "HK2886", "HK2898", "HK2899")
 ## 7 datasets
 gse151658 <- base::c("GSE151658-LPS0hr", "GSE151658-LPS1hr", "GSE151658-LPS4hr", "GSE151658-LPS16hr", "GSE151658-LPS27hr", 
                      "GSE151658-LPS36hr", "GSE151658-LPS48hr")
-## 6 datasets
-gse157292 <- base::c("GSE157292-nk1", "GSE157292-nk2", "GSE157292-rk1", "GSE157292-rk2", "GSE157292-tk1", "GSE157292-tk2")
-## 5 ATAC disease datasets
-atac.disease.samples <- base::c("FA-Mm", "UUO-Mm", "Cis-Mm", "IRI4-2", "IRI8-3")
-## 7 ATAC control datasets
-atac.control.samples <- base::c("Ctrl-Mm", "mouse1d1", "mouse1d2", "mouse3w", "mouse8w", "control8w1", "control8w2")
+## 11 datasets
+gse184652 <- base::c("GSE184652-dbdbPBSrep1", "GSE184652-dbdbPBSrep2", "GSE184652-dbdbPBSrep3", 
+                     "GSE184652-dbdbPBSrep4", "GSE184652-dbdbPBSrep5", "GSE184652-dbdbPBSrep6", 
+                     "GSE184652-dbmPBSrep1", "GSE184652-dbmPBSrep2", "GSE184652-dbmPBSrep3", 
+                     "GSE184652-dbmPBSrep4", "GSE184652-dbmPBSrep5")
+gse184652.ids <- base::c(
+  "GSE184652-dbdbPBSrep1" = "N3024", 
+  "GSE184652-dbdbPBSrep2" = "B3025", 
+  "GSE184652-dbdbPBSrep3" = "A3026", 
+  "GSE184652-dbdbPBSrep4" = "B3027", 
+  "GSE184652-dbdbPBSrep5" = "C3028", 
+  "GSE184652-dbdbPBSrep6" = "A3029", 
+  "GSE184652-dbmPBSrep1" = "E3019", 
+  "GSE184652-dbmPBSrep2" = "A3020", 
+  "GSE184652-dbmPBSrep3" = "F3021", 
+  "GSE184652-dbmPBSrep4" = "G3022", 
+  "GSE184652-dbmPBSrep5" = "H3023"
+)
+
 ## RNA disease datasets
 rna.disease.samples <- base::c("FA1", "FA2", "Notch3", "Notch4", "PGC1a-1", "PGC1a-2", "UUO1", "UUO2", 
                                "longIRI1d1", "longIRI1d2", "longIRI3d1", "longIRI3d2", "longIRI14d1", "longIRI14d2", 
-                               "shortIRI1d1", "shortIRI1d2", "shortIRI3d1", "shortIRI3d2", "shortIRI14d1", "shortIRI14d2", 
-                               "IRI5-4", "IRI5-5", "IRI8-3", 
-                               "ESRRA", "G2CA-E", "MEK", "Ksp", 
-                               "GSE139107-IRI4h1", "GSE139107-IRI4h2", "GSE139107-IRI4h3", 
-                               "GSE139107-IRI12h1-1", "GSE139107-IRI12h1-2", "GSE139107-IRI12h2", "GSE139107-IRI12h3", 
-                               "GSE139107-IRI2d1-1", "GSE139107-IRI2d1-2", "GSE139107-IRI2d2-1", "GSE139107-IRI2d2-2", "GSE139107-IRI2d3", 
-                               "GSE139107-IRI14d1-1", "GSE139107-IRI14d1-2", "GSE139107-IRI14d2", "GSE139107-IRI14d3", 
-                               "GSE139107-IRI6w1-1", "GSE139107-IRI6w1-2", "GSE139107-IRI6w2", "GSE139107-IRI6w3", 
-                               "GSE140023-uuo2", "GSE140023-uuo7", "GSE140023-ruuo", 
+                               "shortIRI1d1", "shortIRI1d2", "shortIRI3d1", "shortIRI3d2", "shortIRI14d1", "shortIRI14d2",
+                               "ESRRA", "G2CA-E",
                                "GSE151658-LPS1hr", "GSE151658-LPS4hr", "GSE151658-LPS16hr", "GSE151658-LPS27hr", 
                                "GSE151658-LPS36hr", "GSE151658-LPS48hr", 
-                               "GSE157292-rk1", "GSE157292-rk2", "GSE157292-tk1", "GSE157292-tk2", 
-                               "HK2596", "HK2739", "HK2844", "HK2862", "HK2886")
+                               "HK2596", "HK2844", "HK2862", "HK2886", 
+                               "GSE184652-dbdbPBSrep1", "N3024", "GSE184652-dbdbPBSrep2", "B3025", "GSE184652-dbdbPBSrep3", "A3026", 
+                               "GSE184652-dbdbPBSrep4", "B3027", "GSE184652-dbdbPBSrep5", "C3028", "GSE184652-dbdbPBSrep6", "A3029")
 ## RNA control datasets
-rna.control.samples <- base::c("G2CA-C", "MCK", "Scl", 
-                               "norm1", "norm2", "norm3", "norm4", "norm5", "Pod", "MMctrl7", "MMctrl8", 
-                               "GSE139107-IRIsham1-1", "GSE139107-IRIsham1-2", "GSE139107-IRIsham2", "GSE139107-IRIsham3", 
-                               "GSE140023-sham", 
-                               "GSE151658-LPS0hr", 
-                               "GSE157292-nk1", "GSE157292-nk2", 
-                               "HK2898", "HK2899")
+rna.control.samples <- base::c("G2CA-C",
+                               "norm1", "norm2", "norm3", "norm4", "norm5", "MMctrl7", "MMctrl8", 
+                               "GSE151658-LPS0hr",
+                               "HK2898", "HK2899", 
+                               "GSE184652-dbmPBSrep1", "E3019", "GSE184652-dbmPBSrep2", "A3020", "GSE184652-dbmPBSrep3", "F3021", 
+                               "GSE184652-dbmPBSrep4", "G3022", "GSE184652-dbmPBSrep5", "H3023")
 
-select.rna.disease.samples <- base::list(
-  FAN = base::c("FA1", "FA2"), 
-  UUO = base::c("UUO1", "UUO2"), 
-  longIRI14d = base::c("longIRI14d1", "longIRI14d2"), 
-  shortIRI14d = base::c("shortIRI14d1", "shortIRI14d2"), 
-  Notch = base::c("Notch3", "Notch4"), 
-  PGC1a = base::c("PGC1a-1", "PGC1a-2")
-)
-select.rna.control.samples <- base::c("G2CA-C", "MCK", "Scl", "norm1", "norm2", "norm3", "norm4", "norm5", 
-                                      "Pod", "MMctrl7", "MMctrl8", 
-                                      "GSE140023-sham", "GSE151658-LPS0hr", "GSE157292-nk1", "GSE157292-nk2")
-
-select.atac.disease.samples <- base::list(
-  FAN = base::c("FA-Mm"), 
-  UUO = base::c("UUO-Mm"), 
-  Cisplatin = base::c("Cis-Mm")
-)
-select.atac.control.samples <- base::c("Ctrl-Mm", "mouse3w", "mouse8w", "control8w1")
+## 30 datasets
+select.b6.mouse.scRNA <- base::c("FA1", "FA2", "UUO1", "UUO2", 
+                                 "longIRI1d1", "longIRI1d2", "longIRI3d1", "longIRI3d2", "longIRI14d1", "longIRI14d2", 
+                                 "shortIRI1d1", "shortIRI1d2", "shortIRI3d1", "shortIRI3d2", "shortIRI14d1", "shortIRI14d2", 
+                                 "ESRRA", 
+                                 "norm1", "norm2", "norm3", "norm4", "norm5", "MMctrl7", 
+                                 gse151658)
+## 6 datasets
+select.fvb.mouse.scRNA <- base::c("Notch3", "PGC1a-1", "PGC1a-2", "G2CA-E", "G2CA-C", "MMctrl8")
+## 9 datasets
+select.mouse.snRNA <- base::c("GSE184652-dbdbPBSrep1", "GSE184652-dbdbPBSrep2", "GSE184652-dbdbPBSrep3", "GSE184652-dbdbPBSrep6", 
+                              "GSE184652-dbmPBSrep1", "GSE184652-dbmPBSrep2", "GSE184652-dbmPBSrep3", "GSE184652-dbmPBSrep4", 
+                              "GSE184652-dbmPBSrep5")
+## 6 datasets
+select.human.snRNA <- base::c("HK2596", "HK2844", "HK2862", "HK2886", "HK2898", "HK2899")
 
 ### Markers ------
 default.known.markers <- base::c(
@@ -240,6 +222,7 @@ rst.dap.dir <- base::file.path(rst.dir, "DAP")
 rst.hom.dir <- base::file.path(rst.dap.dir, "HOMER")
 rst.gre.dir <- base::file.path(rst.dap.dir, "GREAT")
 rst.wgc.dir <- base::file.path(rst.dir, "WGCNA")
+rst.qc.dir <- base::file.path(rst.dir, "QC")
 fig.dir <- base::file.path(curr.out.dir, "figures")
 fig.qc.dir <- base::file.path(fig.dir, "QC")
 fig.pc.dir <- base::file.path(fig.dir, "PC")
@@ -254,6 +237,7 @@ fig.vel.dir <- base::file.path(fig.tra.dir, "velocyto")
 fig.mo2.dir <- base::file.path(fig.tra.dir, "monocle2")
 fig.scv.dir <- base::file.path(fig.tra.dir, "scvelo")
 fig.pat.dir <- base::file.path(fig.dir, "pathway")
+fig.wgc.dir <- base::file.path(fig.dir, "WGCNA")
 base::dir.create(path = curr.out.dir, showWarnings = T, recursive = T, mode = "0755")
 base::dir.create(path = rds.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = rst.dir, showWarnings = T, recursive = F, mode = "0755")
@@ -269,6 +253,7 @@ base::dir.create(path = rst.dap.dir, showWarnings = T, recursive = F, mode = "07
 base::dir.create(path = rst.hom.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = rst.gre.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = rst.wgc.dir, showWarnings = T, recursive = F, mode = "0755")
+base::dir.create(path = rst.qc.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.qc.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.pc.dir, showWarnings = T, recursive = F, mode = "0755")
@@ -283,5 +268,6 @@ base::dir.create(path = fig.vel.dir, showWarnings = T, recursive = F, mode = "07
 base::dir.create(path = fig.mo2.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.scv.dir, showWarnings = T, recursive = F, mode = "0755")
 base::dir.create(path = fig.pat.dir, showWarnings = T, recursive = F, mode = "0755")
+base::dir.create(path = fig.wgc.dir, showWarnings = T, recursive = F, mode = "0755")
 
 base::source(file = base::file.path(src.dir, "auxiliary_functions.R"))
