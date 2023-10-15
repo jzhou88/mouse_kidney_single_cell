@@ -1,10 +1,11 @@
 # seurat_analysis.R
 base::cat("\nRunning \"seurat_analysis.R\" ...\n")
 
-sobj <- base::readRDS(file = "/home/jzhou88/projects/KidneyDisease/2020-11-04/ScanpyHarmony14/RDS/after_QC.RDS")
+sobj <- base::readRDS(file = "/home/jzhou88/projects/KidneyDisease/2020-11-04/MouseRnaCellSeurat1/RDS/after_QC.RDS")
+Seurat::DefaultAssay(object = sobj) <- "RNA"
 split.seurat.obj <- T
 stop.after.hvf <- F
-npcs <- 121 # 438,686 cells in total
+npcs <- 101 # 280,521 cells in total
 
 ### Standard Seurat workflow
 if (split.seurat.obj) {
@@ -96,7 +97,7 @@ base::saveRDS(object = sobj, file = base::file.path(rds.dir, "after_harmony.RDS"
 PlotIntegration(seurat.obj = sobj, act.assay = "RNA", features.to.plot = "harmony_1", save.dir = fig.pc.dir, fn.suf = "_harmony1")
 PlotPrincipalComponents(seurat.obj = sobj, save.dir = fig.pc.dir, dim.to.plot = npcs, red.to.use = "harmony", do.elbow = F)
 
-pcs <- 121
+pcs <- 101
 red <- "harmony"
 ## Run non-linear dimensional reduction
 sobj <- Seurat::RunUMAP(object = sobj, dims = 1:pcs, reduction = red, umap.method = "uwot", return.model = T, metric = "cosine", 
